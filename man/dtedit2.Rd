@@ -7,11 +7,12 @@
 dtedit2(input, output, name, thedata, view.cols = names(thedata),
   view.captions = view.cols, edit.cols = names(thedata),
   edit.label.cols = edit.cols, input.types, input.choices = NULL,
-  selectize = TRUE, modal.size = "l", text.width = "100\%",
+  selectize = TRUE, modal.size = "m", text.width = "100\%",
   textarea.width = "570px", textarea.height = "200px",
   date.width = "100px", numeric.width = "100px",
   select.width = "100\%", defaultPageLength = 6,
-  title.delete = "Delete", title.edit = "Edit", title.add = "New",
+  title.delete = "删除窗口", title.edit = "修改窗口",
+  title.add = "新增窗口", title.copy = "复制窗口",
   label.delete = "删除", label.edit = "修改",
   label.add = "新增", label.copy = "复制", show.delete = TRUE,
   show.update = TRUE, show.insert = TRUE, show.copy = TRUE,
@@ -64,6 +65,8 @@ dtedit2(input, output, name, thedata, view.cols = names(thedata),
 \item{title.edit}{编辑页标题}
 
 \item{title.add}{新增页标题}
+
+\item{title.copy}{复制标题}
 
 \item{label.delete}{删除按纽名称}
 

@@ -35,10 +35,13 @@
 #' @param click.time.threshold 点击按纽时间阈值默认2秒
 #' @param datatable.options  datatable额外可传递的选项https://rstudio.github.io/DT/options.html
 #' @param view.captions   列表标题显示名称,新增功能
+#' @param title.copy 复制标题
 #'
 #' @return 返回值
 #' @include util.R
+#' @include dtedit_ui.R
 #' @import tsdo
+#' @import shiny
 #' @export
 #'
 #' @examples
@@ -51,7 +54,7 @@ dtedit2 <- function(input, output, name, thedata,
                    input.types,
                    input.choices = NULL,
                    selectize = TRUE,
-                   modal.size = 'l',
+                   modal.size = 'm',
                    text.width = '100%',
                    textarea.width = '570px',
                    textarea.height = '200px',
@@ -59,9 +62,10 @@ dtedit2 <- function(input, output, name, thedata,
                    numeric.width = '100px',
                    select.width = '100%',
                    defaultPageLength = 6,
-                   title.delete = 'Delete',
-                   title.edit = 'Edit',
-                   title.add = 'New',
+                   title.delete = '删除窗口',
+                   title.edit = '修改窗口',
+                   title.add = '新增窗口',
+                   title.copy='复制窗口',
                    label.delete = '删除',
                    label.edit = '修改',
                    label.add = '新增',
@@ -74,7 +78,8 @@ dtedit2 <- function(input, output, name, thedata,
                    callback.update = function(data, olddata, row) { },
                    callback.insert = function(data, row) { },
                    click.time.threshold = 2, # in seconds
-                   datatable.options = list(pageLength=defaultPageLength)
+                   datatable.options = list(pageLength=defaultPageLength
+                                            )
                    
 ) {
   #一、全局变量设置-------
@@ -114,132 +119,41 @@ dtedit2 <- function(input, output, name, thedata,
   
   dt.proxy <- DT::dataTableProxy(DataTableName)
     #3.4定义多选择-----------
+    #已经尝试，不能移出
   
   selectInputMultiple <- function(...) {
     shiny::selectInput(multiple = TRUE, selectize = selectize, ...)
   }
    #3.5定义输入类型的规范----------
   
-  valid.input.types <- getInputTypes()
+  # valid.input.types <- getInputTypes()
   
   #3.6自动匹配输入控件类型--------
-  #inputTypes <- sapply(thedata[,edit.cols], FUN=mapInputType)
-   inputTypes <- mapInputTypes(thedata,edit.cols)
+
+   #inputTypes <- mapInputTypes(thedata,edit.cols)
   
+  #3.7检查输入类型---------
+
   
-  if(!missing(input.types)) {
-    if(!all(names(input.types) %in% edit.cols)) {
-      stop('input.types column not a valid editting column: ',
-           paste0(names(input.types)[!names(input.types) %in% edit.cols]))
-    }
-    if(!all(input.types %in% valid.input.types)) {
-      stop(paste0('input.types must only contain values of: ',
-                  paste0(valid.input.types, collapse = ', ')))
-    }
-    inputTypes[names(input.types)] <- input.types
-  }
+  inputTypes <-checkInputTypes(thedata,edit.cols,input.types)
   
-  # Convert any list columns to characters before displaying
-  for(i in 1:ncol(thedata)) {
-    if(nrow(thedata) == 0) {
-      thedata[,i] <- character()
-    } else if(is.list(thedata[,i])) {
-      thedata[,i] <- sapply(thedata[,i], FUN = function(x) { paste0(x, collapse = ', ') })
-    }
-  }
+  #3.8 针对每列数据进行检验，将列表转化为字符--------
+
+   thedata <- df_setList_char(data = thedata)
   
   output[[DataTableName]] <- DT::renderDataTable({
-    #添加标题显示功能
+    #3.9添加标题显示功能---------
     df_setColCaption(thedata,view.cols,view.captions)
   }, options = datatable.options, server=TRUE, selection='single', rownames=FALSE)
   
-  getFields <- function(typeName, values) {
-    fields <- list()
-    for(i in seq_along(edit.cols)) {
-      if(inputTypes[i] == 'dateInput') {
-        value <- ifelse(missing(values),
-                        as.character(Sys.Date()),
-                        as.character(values[,edit.cols[i]]))
-        fields[[i]] <- dateInput(paste0(name, typeName, edit.cols[i]),
-                                 label=edit.label.cols[i],
-                                 value=value,
-                                 width=date.width)
-      } else if(inputTypes[i] == 'selectInputMultiple') {
-        value <- ifelse(missing(values), '', values[,edit.cols[i]])
-        if(is.list(value)) {
-          value <- value[[1]]
-        }
-        choices <- ''
-        if(!missing(values)) {
-          choices <- unique(unlist(values[,edit.cols[i]]))
-        }
-        if(!is.null(input.choices)) {
-          if(edit.cols[i] %in% names(input.choices)) {
-            choices <- input.choices[[edit.cols[i]]]
-          }
-        }
-        if(length(choices) == 1 & choices == '') {
-          warning(paste0('No choices available for ', edit.cols[i],
-                         '. Specify them using the input.choices parameter'))
-        }
-        fields[[i]] <- selectInputMultiple(paste0(name, typeName, edit.cols[i]),
-                                           label=edit.label.cols[i],
-                                           choices=choices,
-                                           selected=value,
-                                           width=select.width)
-        
-      } else if(inputTypes[i] == 'selectInput') {
-        value <- ifelse(missing(values), '', as.character(values[,edit.cols[i]]))
-        fields[[i]] <- shiny::selectInput(paste0(name, typeName, edit.cols[i]),
-                                          label=edit.label.cols[i],
-                                          choices=levels(result$thedata[,edit.cols[i]]),
-                                          selected=value,
-                                          width=select.width)
-      } else if(inputTypes[i] == 'numericInput') {
-        value <- ifelse(missing(values), 0, values[,edit.cols[i]])
-        fields[[i]] <- shiny::numericInput(paste0(name, typeName, edit.cols[i]),
-                                           label=edit.label.cols[i],
-                                           value=value,
-                                           width=numeric.width)
-      } else if(inputTypes[i] == 'textAreaInput') {
-        value <- ifelse(missing(values), '', values[,edit.cols[i]])
-        fields[[i]] <- shiny::textAreaInput(paste0(name, typeName, edit.cols[i]),
-                                            label=edit.label.cols[i],
-                                            value=value,
-                                            width=textarea.width, height=textarea.height)
-      } else if(inputTypes[i] == 'textInput') {
-        value <- ifelse(missing(values), '', values[,edit.cols[i]])
-        fields[[i]] <- shiny::textInput(paste0(name, typeName, edit.cols[i]),
-                                        label=edit.label.cols[i],
-                                        value=value,
-                                        width=text.width)
-      } else if(inputTypes[i] == 'passwordInput') {
-        value <- ifelse(missing(values), '', values[,edit.cols[i]])
-        fields[[i]] <- shiny::passwordInput(paste0(name, typeName, edit.cols[i]),
-                                            label=edit.label.cols[i],
-                                            value=value,
-                                            width=text.width)
-      } else {
-        stop('Invalid input type!')
-      }
-    }
-    return(fields)
-  }
   
   output[[paste0(name, '_message')]] <- shiny::renderText('')
+  #3.10更新数据-------
+  # updateData
   
-  updateData <- function(proxy, data, ...) {
-    # Convert any list columns to characters before displaying
-    for(i in 1:ncol(data)) {
-      if(is.list(data[,i])) {
-        data[,i] <- sapply(data[,i], FUN = function(x) { paste0(x, collapse = ', ') })
-      }
-    }
-    DT::replaceData(proxy, data, ...)
-  }
-  
-  ##### Insert functions #####################################################
-  
+  #4操作按纽定义-------------
+  #4.1、新增操作--------
+  #显示新增窗口
   observeEvent(input[[paste0(name, '_add')]], {
     if(!is.null(row)) {
       shiny::showModal(addModal())
@@ -248,11 +162,36 @@ dtedit2 <- function(input, output, name, thedata,
   
   insert.click <- NA
   
+  addModal <- function(row, values,title=title.add) {
+    output[[paste0(name, '_message')]] <- shiny::renderText('')
+    fields <- getFields('_add_', values,  name,
+                        inputTypes,
+                        input.choices,
+                        edit.cols,
+                        edit.label.cols,
+                        text.width,
+                        textarea.width ,
+                        textarea.height ,
+                        date.width ,
+                        numeric.width,
+                        select.width,selectInputMultiple,result
+    )
+    shiny::modalDialog(title = title,
+                       shiny::div(shiny::textOutput(paste0(name, '_message')), style='color:red'),
+                       fields,
+                       footer = shiny::column(shiny::modalButton('取消'),
+                                              shiny::actionButton(paste0(name, '_insert'), '保存'),
+                                              width=12),
+                       size = modal.size
+    )
+  }
+  
+  
   observeEvent(input[[paste0(name, '_insert')]], {
     if(!is.na(insert.click)) {
       lastclick <- as.numeric(Sys.time() - insert.click, units = 'secs')
       if(lastclick < click.time.threshold) {
-        warning(paste0('Double click detected. Ignoring insert call for ', name, '.'))
+        warning(paste0('检测到双击操作. 取消新增操作 ', name, '.'))
         return()
       }
     }
@@ -286,31 +225,20 @@ dtedit2 <- function(input, output, name, thedata,
     })
   })
   
-  addModal <- function(row, values) {
-    output[[paste0(name, '_message')]] <- shiny::renderText('')
-    fields <- getFields('_add_', values)
-    shiny::modalDialog(title = title.add,
-                       shiny::div(shiny::textOutput(paste0(name, '_message')), style='color:red'),
-                       fields,
-                       footer = shiny::column(shiny::modalButton('Cancel'),
-                                              shiny::actionButton(paste0(name, '_insert'), 'Save'),
-                                              width=12),
-                       size = modal.size
-    )
-  }
+
   
-  ##### Copy functions #######################################################
+  #4.2、复制操作---------
   
   observeEvent(input[[paste0(name, '_copy')]], {
     row <- input[[paste0(name, 'dt_rows_selected')]]
     if(!is.null(row)) {
       if(row > 0) {
-        shiny::showModal(addModal(values=result$thedata[row,]))
+        shiny::showModal(addModal(values=result$thedata[row,],title = title.copy))
       }
     }
   })
   
-  ##### Update functions #####################################################
+  #4.3、编辑一级按纽 --------
   
   observeEvent(input[[paste0(name, '_edit')]], {
     row <- input[[paste0(name, 'dt_rows_selected')]]
@@ -322,12 +250,37 @@ dtedit2 <- function(input, output, name, thedata,
   })
   
   update.click <- NA
+  #定义修改界面-----------
   
+  editModal <- function(row) {
+    output[[paste0(name, '_message')]] <- renderText('')
+    fields <- getFields('_edit_', values=result$thedata[row,],  name,
+                        inputTypes,
+                        input.choices,
+                        edit.cols,
+                        edit.label.cols,
+                        text.width,
+                        textarea.width ,
+                        textarea.height ,
+                        date.width ,
+                        numeric.width,
+                        select.width,
+                        selectInputMultiple,result)
+    shiny::modalDialog(title = title.edit,
+                       shiny::div(shiny::textOutput(paste0(name, '_message')), style='color:red'),
+                       fields,
+                       footer = column(shiny::modalButton('取消'),
+                                       shiny::actionButton(paste0(name, '_update'), '保存'),
+                                       width=12),
+                       size = modal.size
+    )
+  }
+  #定义更新操作---------
   observeEvent(input[[paste0(name, '_update')]], {
     if(!is.na(update.click)) {
       lastclick <- as.numeric(Sys.time() - update.click, units = 'secs')
       if(lastclick < click.time.threshold) {
-        warning(paste0('Double click detected. Ignoring update call for ', name, '.'))
+        warning(paste0('检测到双击操作，取消修改操作 ', name, '.'))
         return()
       }
     }
@@ -367,20 +320,11 @@ dtedit2 <- function(input, output, name, thedata,
     return(FALSE)
   })
   
-  editModal <- function(row) {
-    output[[paste0(name, '_message')]] <- renderText('')
-    fields <- getFields('_edit_', values=result$thedata[row,])
-    shiny::modalDialog(title = title.edit,
-                       shiny::div(shiny::textOutput(paste0(name, '_message')), style='color:red'),
-                       fields,
-                       footer = column(shiny::modalButton('Cancel'),
-                                       shiny::actionButton(paste0(name, '_update'), 'Save'),
-                                       width=12),
-                       size = modal.size
-    )
-  }
+
   
-  ##### Delete functions #####################################################
+  #4.4、定义删除按纽 ----------
+  
+  #定义删除一级菜单的相应----------
   
   observeEvent(input[[paste0(name, '_remove')]], {
     row <- input[[paste0(name, 'dt_rows_selected')]]
@@ -391,6 +335,22 @@ dtedit2 <- function(input, output, name, thedata,
     }
   })
   
+  #删除窗口界面定义-----
+  deleteModal <- function(row) {
+    fields <- list()
+    for(i in seq_along(view.cols)) {
+      fields[[view.cols[i]]] <- div(paste0(view.captions[i], ' ： ', result$thedata[row,view.cols[i]]))
+    }
+    shiny::modalDialog(title = title.delete,
+                       shiny::p('是否删除此记录?'),
+                       fields,
+                       footer = shiny::column(modalButton('取消'),
+                                              shiny::actionButton(paste0(name, '_delete'), '删除'),
+                                              width=12),
+                       size = modal.size
+    )
+  }
+  #定义删除按纽的操作------
   observeEvent(input[[paste0(name, '_delete')]], {
     row <- input[[paste0(name, 'dt_rows_selected')]]
     if(!is.null(row)) {
@@ -410,30 +370,28 @@ dtedit2 <- function(input, output, name, thedata,
     }
     return(FALSE)
   })
+
   
-  deleteModal <- function(row) {
-    fields <- list()
-    for(i in view.cols) {
-      fields[[i]] <- div(paste0(i, ' = ', result$thedata[row,i]))
-    }
-    shiny::modalDialog(title = title.delete,
-                       shiny::p('Are you sure you want to delete this record?'),
-                       fields,
-                       footer = shiny::column(modalButton('Cancel'),
-                                              shiny::actionButton(paste0(name, '_delete'), 'Delete'),
-                                              width=12),
-                       size = modal.size
-    )
-  }
-  
-  ##### Build the UI for the DataTable and buttons ###########################
-  
+  ##### Build the UI for the DataTable and buttons --------
   output[[name]] <- shiny::renderUI({
     shiny::div(
-      if(show.insert) { shiny::actionButton(paste0(name, '_add'), label.add) },
-      if(show.update) { shiny::actionButton(paste0(name, '_edit'), label.edit) },
-      if(show.delete) { shiny::actionButton(paste0(name, '_remove'), label.delete) },
-      if(show.copy) { shiny::actionButton(paste0(name, '_copy'), label.copy) },
+      if(show.insert) {
+        
+        dt_btn(name,'_add',label.add)
+        },
+      if(show.copy) { 
+        
+        dt_btn(name,'_copy',label.copy)
+      },
+      if(show.update) { 
+
+        dt_btn(name,'_edit',label.edit)
+        },
+      if(show.delete) { 
+      
+        dt_btn(name,'_remove',label.delete)
+        },
+    
       shiny::br(), shiny::br(), DT::dataTableOutput(DataTableName)
     )
   })

@@ -78,7 +78,7 @@ server <- function(input, output) {
 						Type = factor(levels=c('Admin', 'User')),
 						stringsAsFactors=FALSE)
 	names$Date <- as.Date(names$Date, origin='1970-01-01')
-	namesdt <- dtedit(input, output, name = 'names', names)
+	namesdt <- dtedit2(input, output, name = 'names', thedata = names)
 }
 
 ##### Create the shiny UI

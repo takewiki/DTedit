@@ -26,7 +26,7 @@ server <- function(input, output) {
 	}
 
 	##### Create the DTedit object
-	DTedit::dtedit(input, output,
+	DTedit::dtedit2(input, output,
 		   name = 'mycontacts',
 		   thedata = mydata,
 		   edit.cols = c('name', 'email', 'useR', 'notes'),

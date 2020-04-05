@@ -2,7 +2,8 @@
 % Please edit documentation in R/util.R
 \name{setDTtoCn}
 \alias{setDTtoCn}
-\title{设置DT为中文}
+\title{设置DT为中文
+https://datatables.net/reference/option/language}
 \usage{
 setDTtoCn()
 }
@@ -11,6 +12,7 @@ setDTtoCn()
 }
 \description{
 设置DT为中文
+https://datatables.net/reference/option/language
 }
 \examples{
 setDTtoCn();
