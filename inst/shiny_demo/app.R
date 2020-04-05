@@ -60,14 +60,16 @@ books.delete.callback <- function(data, row) {
 ##### Create the Shiny server
 server <- function(input, output) {
 	books <- getBooks()
-	dtedit(input, output,
+	dtedit2(input, output,
 		   name = 'books',
 		   thedata = books,
-		   edit.cols = c('Title', 'Authors', 'Date', 'Publisher'),
-		   edit.label.cols = c('Book Title', 'Authors', 'Publication Date', 'Publisher'),
+		   edit.cols = c('Title', 'Authors', 'Date'),
+		   edit.label.cols = c('Book Title', 'Authors', 'Publication Date'),
 		   input.types = c(Title='textAreaInput'),
 		   input.choices = list(Authors = unique(unlist(books$Authors))),
 		   view.cols = names(books)[c(5,1,3)],
+		   view.captions = c('序号','作者','名称'),
+		   modal.size='l',
 		   callback.update = books.update.callback,
 		   callback.insert = books.insert.callback,
 		   callback.delete = books.delete.callback)
