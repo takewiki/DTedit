@@ -68,23 +68,19 @@ server <- function(input, output) {
          input.types = c(Title='textAreaInput'),
          input.choices = list(Authors = unique(unlist(books$Authors))),
          view.cols = names(books)[c(5,1,3)],
+         view.captions = c('序号','作者','书名'),
          callback.update = books.update.callback,
          callback.insert = books.insert.callback,
          callback.delete = books.delete.callback)
   
-  names <- data.frame(Name=character(), Email=character(), Date=numeric(),
-                      Type = factor(levels=c('Admin', 'User')),
-                      stringsAsFactors=FALSE)
-  names$Date <- as.Date(names$Date, origin='1970-01-01')
-  namesdt <- dtedit2(input, output, name = 'names', names)
+
 }
 
 ##### Create the shiny UI
 ui <- fluidPage(
   h3('Books'),
   uiOutput('books'),
-  hr(), h3('Email Addresses'),
-  uiOutput('names')
+  hr()
 )
 
 shinyApp(ui = ui, server = server)
