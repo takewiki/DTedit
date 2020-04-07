@@ -3,22 +3,26 @@ library(tsda)
 library(DTedit)
 
 #建立链接
-conn <-conn_rds('test')
+conn <-conn_rds('JH_2018B')
 
 
 #测试链接
 # test_conn()
 
 
-getBooks <- function(table='books') {
+getBooks <- function(table='T_BD_ACCOUNT') {
   sql <- sql_gen_select(conn,table = table)
+  #print(sql)
   books <-sql_select(conn,sql)
+  #print(books)
   #针对进行格式化处理
   #如果出来新的数据类型，需要添加格式化函数
   #请修改format_to_dtedit  --formatter.R
   fieldList <-sql_fieldInfo(conn,table)
+  print(fieldList)
   for (i in 1:ncol(books)){
     type <-fieldList[i,'FTypeName']
+    print(type)
     books[,i] <-format_to_dtedit(type)(books[,i])
     
   }
@@ -26,7 +30,7 @@ getBooks <- function(table='books') {
   return(books)
 }
 
-getMax_id <-function(conn,table='books',id_var='id'){
+getMax_id <-function(conn,table='T_BD_ACCOUNT',id_var='FACCTID'){
   sql <- sql_gen_select(conn,table,id_var)
   #print(sql)
   r <-sql_select(conn,sql)
@@ -35,7 +39,7 @@ getMax_id <-function(conn,table='books',id_var='id'){
 }
 
 ##### Callback functions.
-books.insert.callback <- function(data, row ,table='books',f=getBooks,id_var='id') {
+books.insert.callback <- function(data, row ,table='T_BD_ACCOUNT',f=getBooks,id_var='FACCTID') {
   sql_header <- sql_gen_insert(conn,table)
   fieldList <-sql_fieldInfo(conn,table)
   ncount <-nrow(fieldList)
@@ -59,10 +63,10 @@ books.insert.callback <- function(data, row ,table='books',f=getBooks,id_var='id
 }
 
 books.update.callback <- function(data, olddata, row,
-                                  table='books',
+                                  table='T_BD_ACCOUNT',
                                   f=getBooks,
-                                  edit.cols = c('Title', 'Authors', 'Date', 'Publisher'),
-                                  id_var='id') 
+                                  edit.cols = c('FNumber'),
+                                  id_var='FACCTID') 
   {
   sql_header <- sql_gen_update(table);
   fieldList <-sql_fieldInfo(conn,table)
@@ -85,7 +89,7 @@ books.update.callback <- function(data, olddata, row,
   return(f())
 }
 
-books.delete.callback <- function(data, row ,table ='books',f=getBooks,id_var='id') {
+books.delete.callback <- function(data, row ,table ='T_BD_ACCOUNT',f=getBooks,id_var='FACCTID') {
   sql_header <- sql_gen_delete(table);
   sql_tail <-paste0('  ',id_var,' = ',data[row,id_var])
   query <- paste0(sql_header,sql_tail)
@@ -103,12 +107,12 @@ server <- function(input, output) {
   dtedit2(input, output,
          name = 'books',
          thedata = books,
-         edit.cols = c('Title', 'Authors', 'Date', 'Publisher'),
-         edit.label.cols = c('Book Title', 'Authors', 'Publication Date', 'Publisher'),
-         input.types = c(Title='textAreaInput'),
-         input.choices = list(Authors = unique(unlist(books$Authors))),
-         view.cols = names(books)[c(1,2,4)],
-         view.captions = c('序号','作者','书名'),
+         edit.cols = c('FNUMBER','FDC'),
+         edit.label.cols = c('科目代码','余额方向'),
+         input.types = c(FNUMBER='textAreaInput'),
+         input.choices = list(FNUMBER = unique(unlist(books$FNUMBER))),
+         view.cols = c('FACCTID','FNUMBER','FDC'),
+         view.captions = c('序号','科目代码','余额方向'),
          callback.update = books.update.callback,
          callback.insert = books.insert.callback,
          callback.delete = books.delete.callback)

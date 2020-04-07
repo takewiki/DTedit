@@ -10,7 +10,7 @@ conn <-conn_rds('test')
 # test_conn()
 
 
-getBooks <- function(table='books') {
+getBooks <- function(table='t_test') {
   sql <- sql_gen_select(conn,table = table)
   books <-sql_select(conn,sql)
   #针对进行格式化处理
@@ -26,7 +26,7 @@ getBooks <- function(table='books') {
   return(books)
 }
 
-getMax_id <-function(conn,table='books',id_var='id'){
+getMax_id <-function(conn,table='t_test',id_var='fid'){
   sql <- sql_gen_select(conn,table,id_var)
   #print(sql)
   r <-sql_select(conn,sql)
@@ -35,7 +35,7 @@ getMax_id <-function(conn,table='books',id_var='id'){
 }
 
 ##### Callback functions.
-books.insert.callback <- function(data, row ,table='books',f=getBooks,id_var='id') {
+books.insert.callback <- function(data, row ,table='t_test',f=getBooks,id_var='fid') {
   sql_header <- sql_gen_insert(conn,table)
   fieldList <-sql_fieldInfo(conn,table)
   ncount <-nrow(fieldList)
@@ -59,10 +59,10 @@ books.insert.callback <- function(data, row ,table='books',f=getBooks,id_var='id
 }
 
 books.update.callback <- function(data, olddata, row,
-                                  table='books',
+                                  table='t_test',
                                   f=getBooks,
-                                  edit.cols = c('Title', 'Authors', 'Date', 'Publisher'),
-                                  id_var='id') 
+                                  edit.cols = c('fname'),
+                                  id_var='fid') 
   {
   sql_header <- sql_gen_update(table);
   fieldList <-sql_fieldInfo(conn,table)
@@ -85,7 +85,7 @@ books.update.callback <- function(data, olddata, row,
   return(f())
 }
 
-books.delete.callback <- function(data, row ,table ='books',f=getBooks,id_var='id') {
+books.delete.callback <- function(data, row ,table ='t_test',f=getBooks,id_var='fid') {
   sql_header <- sql_gen_delete(table);
   sql_tail <-paste0('  ',id_var,' = ',data[row,id_var])
   query <- paste0(sql_header,sql_tail)
@@ -103,12 +103,12 @@ server <- function(input, output) {
   dtedit2(input, output,
          name = 'books',
          thedata = books,
-         edit.cols = c('Title', 'Authors', 'Date', 'Publisher'),
-         edit.label.cols = c('Book Title', 'Authors', 'Publication Date', 'Publisher'),
-         input.types = c(Title='textAreaInput'),
-         input.choices = list(Authors = unique(unlist(books$Authors))),
-         view.cols = names(books)[c(1,2,4)],
-         view.captions = c('序号','作者','书名'),
+         edit.cols = c('fname'),
+         edit.label.cols = c('名称'),
+         input.types = c(fname='textAreaInput'),
+         input.choices = list(fname = unique(unlist(books$fname))),
+         view.cols = c('fid','fname'),
+         view.captions = c('序号','名称'),
          callback.update = books.update.callback,
          callback.insert = books.insert.callback,
          callback.delete = books.delete.callback)
